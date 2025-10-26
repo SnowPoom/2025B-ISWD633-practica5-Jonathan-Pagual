@@ -1,53 +1,55 @@
 version: '3.8'
 
 services:
-  mysql-service:
-    image: mysql:8.4
-    container_name: mysql-cont
+  postgres-service:
+    image: postgres
+    container_name: postgres-cont
     environment:
-      MYSQL_ROOT_PASSWORD: snowpoom
-      MYSQL_DATABASE: wpdb
-      MYSQL_USER: admin
-      MYSQL_PASSWORD: snowpoom1
+      POSTGRES_PASSWORD: snowpoom
+      POSTGRES_USER: admin
+      POSTGRES_DB: sonardb
     volumes:
-      - mysql-data:/var/lib/mysql
+      - post-data:/var/lib/postgresql/data
     networks:
-      - net-wp
+      - net-sonar
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      test: ["CMD-SHELL", "pg_isready -U admin -d sonardb"]
       interval: 20s
       timeout: 20s
-      retries: 10
+      retries: 5
       start_period: 30s
 
-  wordpress-service:
-    image: wordpress:6
-    container_name: wordpress-cont
+  sonar-service:
+    image: sonarqube:community
+    container_name: sonar-cont
     ports:
-      - 8080:80
+      - 8787:9000
     environment:
-      WORDPRESS_DB_HOST: mysql-cont:3306
-      WORDPRESS_DB_USER: admin 
-      WORDPRESS_DB_PASSWORD: snowpoom1
-      WORDPRESS_DB_NAME: wpdb
+      SONAR_JDBC_USERNAME: admin
+      SONAR_JDBC_PASSWORD: snowpoom
+      SONAR_JDBC_URL: jdbc:postgresql://postgres-cont:5432/sonardb
     volumes:
-      - wordpress-vol:/var/www/html
+      - sonar-data:/opt/sonarqube/data
+      - sonar-logs:/opt/sonarqube/logs
+      - sonar-ext:/opt/sonarqube/extensions
     networks:
-      - net-wp
+      - net-sonar
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost"]
+      test: ["CMD", "curl", "-f", "http://localhost:8787"]
       interval: 20s
       timeout: 20s
       retries: 10
       start_period: 50s
     restart: always
     depends_on:
-      mysql-service:
+      postgres-service:
         condition: service_healthy
 volumes:
-  mysql-data:
-  wordpress-vol:
+  post-data:
+  sonar-data:
+  sonar-logs:
+  sonar-ext:
 
 networks:
-  net-wp:
+  net-sonar:
     driver: bridge
